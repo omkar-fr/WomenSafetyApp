@@ -29,6 +29,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.womensafety.ui.theme.WomenSafetyTheme
+import android.app.Service
+import android.os.IBinder
+import android.telephony.SmsMessage
+
 
 class MainActivity : ComponentActivity() {
     private val powerButtonReceiver = PowerButtonReceiver()
@@ -92,6 +96,75 @@ class PowerButtonReceiver : BroadcastReceiver() {
         when (intent?.action) {
             Intent.ACTION_SCREEN_OFF -> Log.d("PowerButtonReceiver", "Power button pressed (Screen Off)")
             Intent.ACTION_SCREEN_ON -> Log.d("PowerButtonReceiver", "Power button pressed (Screen On)")
+        }
+    }
+}
+
+class BootReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context?, intent: Intent?) {
+        if (intent?.action == Intent.ACTION_BOOT_COMPLETED) {
+            Log.d("BootReceiver", "Device Boot Completed")
+
+            // Start TrackingService on boot
+            val serviceIntent = Intent(context, TrackingService::class.java)
+            context?.startService(serviceIntent)
+        }
+    }
+}
+
+class TrackingService : Service() {
+    override fun onCreate() {
+        super.onCreate()
+        Log.d("TrackingService", "Tracking Service Started")
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Start location tracking logic here
+        return START_STICKY
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.d("TrackingService", "Tracking Service Stopped")
+    }
+
+    override fun onBind(intent: Intent?): IBinder? {
+        return null
+    }
+}
+
+class EmergencyCallService : Service() {
+    override fun onCreate() {
+        super.onCreate()
+        Log.d("EmergencyCallService", "Emergency Call Service Started")
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Implement emergency call logic
+        return START_STICKY
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.d("EmergencyCallService", "Emergency Call Service Stopped")
+    }
+
+    override fun onBind(intent: Intent?): IBinder? {
+        return null
+    }
+}
+
+class SmsReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context?, intent: Intent?) {
+        if (intent?.action == "android.provider.Telephony.SMS_RECEIVED") {
+            val bundle = intent.extras
+            if (bundle != null) {
+                val pdus = bundle["pdus"] as Array<*>?
+                pdus?.forEach { pdu ->
+                    val message = SmsMessage.createFromPdu(pdu as ByteArray)
+                    Log.d("SmsReceiver", "SMS Received: ${message.messageBody}")
+                }
+            }
         }
     }
 }
