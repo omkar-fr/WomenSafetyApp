@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- SMS Permissions (For sending and receiving emergency messages) -->
+    <uses-permission android:name="android.permission.SEND_SMS"/>
+    <uses-permission android:name="android.permission.RECEIVE_SMS"/>
+    <uses-permission android:name="android.permission.READ_SMS"/>
+
+    <!-- Location Permissions (For fetching and sending user's location) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+
+    <!-- Internet Permissions (For online tracking, APIs, Firebase integration) -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
+    <!-- Boot Permission (For running background services after device restart) -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+
+    <!-- Wake Lock (For keeping the device awake during critical tasks) -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+
+    <!-- Foreground Service (For running background tracking and alert services) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+
+    <!-- Vibration (For alert notifications) -->
+    <uses-permission android:name="android.permission.VIBRATE"/>
+
+    <!-- Audio Recording (If you plan to add voice recording for emergencies) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+
+    <!-- Call Permission (For emergency calls) -->
+    <uses-permission android:name="android.permission.CALL_PHONE"/>
+
+    <!-- Camera Permission (For capturing emergency photos or videos) -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.WomenSafety"
+        tools:targetApi="31">
+
+        <!-- Main Activity -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.WomenSafety">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Broadcast Receiver (For Boot Completed event to restart services) -->
+        <receiver android:name=".BootReceiver" android:enabled="true" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
+
+        <!-- Foreground Service (For continuous tracking and alerts) -->
+        <service
+            android:name=".TrackingService"
+            android:foregroundServiceType="location"
+            android:exported="false"/>
+
+        <!-- Emergency Call Service -->
+        <service
+            android:name=".EmergencyCallService"
+            android:foregroundServiceType="phoneCall"
+            android:exported="false"/>
+
+        <!-- SMS Receiver (To listen for emergency SMS commands if needed) -->
+        <receiver android:name=".SmsReceiver" android:enabled="true" android:exported="false">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED"/>
+            </intent-filter>
+        </receiver>
+
+    </application>
+
+</manifest>
