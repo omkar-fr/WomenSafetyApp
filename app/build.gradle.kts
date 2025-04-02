@@ -51,6 +51,8 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview:1.7.0")
     implementation(libs.androidx.monitor)
     implementation(libs.androidx.junit.ktx)
+    implementation(libs.firebase.firestore.ktx)
+    implementation(libs.firebase.auth.ktx)
     testImplementation(libs.junit.junit)
     debugImplementation("androidx.compose.ui:ui-tooling:1.7.0")
     implementation("androidx.compose.material:material-icons-extended:1.7.0")
@@ -58,4 +60,5 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation(platform("com.google.firebase:firebase-bom:33.12.0"))
     implementation("com.google.firebase:firebase-analytics")
+
 }

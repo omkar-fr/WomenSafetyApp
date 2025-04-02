@@ -16,6 +16,9 @@ import android.app.NotificationManager
 import android.os.Build
 import android.os.Looper
 
+
+
+
 class EmergencyService : Service(), LocationListener {
     private lateinit var locationManager: LocationManager
     private lateinit var smsManager: SmsManager
