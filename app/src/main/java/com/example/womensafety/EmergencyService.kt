@@ -31,6 +31,12 @@ class EmergencyService : Service(), LocationListener {
         createNotificationChannel()
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         smsManager = SmsManager.getDefault()
+        requestContactPermission()
+
+    }
+
+    private fun requestContactPermission() {
+        TODO("Not yet implemented")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
