@@ -5,8 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import androidx.navigation.navOptions
-
 import android.os.Bundle
 import android.provider.ContactsContract
 import android.util.Log
@@ -14,7 +12,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -38,7 +35,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -49,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -57,11 +54,20 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.womensafety.ui.theme.WomenSafetyTheme
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.delay
-import androidx.compose.ui.tooling.preview.Preview
-import kotlin.random.Random
+import androidx.lifecycle.viewmodel.compose.viewModel
+
+
+// Import for your viewmodels and data classes
+import com.example.womensafety.data.EmergencyContact
+import com.example.womensafety.data.UserProfile
+import viewmodel.ContactsViewModel
+import viewmodel.ProfileViewModel as ProfileViewModel1
+
+// Import for compose saveable state
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.google.firebase.firestore.FieldValue
 
 
 class MainActivity : ComponentActivity() {
@@ -125,7 +131,8 @@ fun AppContent(firestore: FirebaseFirestore, auth: FirebaseAuth) {
             NavHost(navController, startDestination = startDestination) {
 
                 composable("liveLocation") {
-                    LiveLocationScreen(navController)}
+                    LiveLocationScreen(navController)
+                }
                 composable("login") {
                     LoginScreen(navController = navController, firestore = firestore, auth = auth)
                 }
@@ -140,18 +147,33 @@ fun AppContent(firestore: FirebaseFirestore, auth: FirebaseAuth) {
                 }
                 composable("dashboard") {
                     DashboardScreen(navController, firestore, auth)
-
-                }
-                composable("edit_contacts") {
-                    EditContactsScreen(navController, firestore, auth)
                 }
                 composable("update_profile") {
-                    UpdateProfileScreen(navController, firestore, auth)
+                    val profileViewModel: ProfileViewModel1 = viewModel()
+                    ProfileScreen(viewModel = profileViewModel)
                 }
+
+                composable("edit_contacts") {
+                    val contactsViewModel: ContactsViewModel = viewModel()
+                    ContactsScreen(viewModel = contactsViewModel)
+                }
+
                 composable("forgot_password") {
                     ForgotPasswordScreen(navController = navController, auth = auth)
                 }
+                composable("contacts") {
+                    // Manually create the ViewModel for ContactsScreen
+                    val contactsViewModel: ContactsViewModel = viewModel()
+                    ContactsScreen(viewModel = contactsViewModel)
+                }
+                composable("profile") {
+                    // Manually create the ViewModel for ProfileScreen
+                    val profileViewModel: ProfileViewModel1 = viewModel()
+                    ProfileScreen(viewModel = profileViewModel)
+                }
+
             }
+
 
             // Show bottom navigation only for authenticated pages
             if (currentRoute in listOf("dashboard", "sos", "edit_contacts", "update_profile")) {
@@ -2061,6 +2083,7 @@ fun DashboardScreen(
 
                                 // Main SOS Button
                                 Box(
+
                                     modifier = Modifier.fillMaxSize() // Ensure it takes full screen space
                                 ) {
                                     FloatingActionButton(
@@ -2435,3 +2458,210 @@ fun DashboardScreen(
         }
     }
 }
+
+@Composable
+fun ContactsScreen(viewModel: ContactsViewModel = viewModel()) {
+    // Observe the contacts list from the ViewModel
+    val contacts by viewModel.contacts.collectAsState()
+
+    // Load contacts on first launch
+    LaunchedEffect(Unit) {
+        viewModel.loadContacts()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Text("Emergency Contacts", style = MaterialTheme.typography.titleLarge)
+
+
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Add Contact Button
+        Button(
+            onClick = { viewModel.addContact() },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Add Contact")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Display contacts in a list
+        LazyColumn {
+            items(contacts) { contact ->
+                ContactItem(contact = contact, viewModel = viewModel)
+            }
+        }
+    }
+}
+
+
+
+@Composable
+fun ContactItem(contact: EmergencyContact, viewModel: ContactsViewModel) {
+    var isEditing by remember { mutableStateOf(false) }
+    var updatedName by remember { mutableStateOf(contact.name) }
+    var updatedPhoneNumber by remember { mutableStateOf(contact.phoneNumber) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+            .background(MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.medium)
+            .padding(16.dp)
+    ) {
+        if (isEditing) {
+            OutlinedTextField(
+                value = updatedName,
+                onValueChange = { updatedName = it },
+                label = { Text("Name") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = updatedPhoneNumber,
+                onValueChange = { updatedPhoneNumber = it },
+                label = { Text("Phone Number") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = {
+                    viewModel.updateContact(
+                        contact.copy(name = updatedName, phoneNumber = updatedPhoneNumber)
+                    )
+                    isEditing = false
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Save")
+            }
+        } else {
+            Text("Name: ${contact.name}", style = MaterialTheme.typography.bodyLarge)
+            Text("Phone: ${contact.phoneNumber}", style = MaterialTheme.typography.bodyMedium)
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                TextButton(onClick = { isEditing = true }) {
+                    Text("Edit")
+                }
+                TextButton(onClick = { viewModel.deleteContact(contact) }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
+    }
+}
+
+
+
+
+@Composable
+fun ProfileScreen(viewModel: ProfileViewModel1 = viewModel()) {
+    val userData by viewModel.userData.collectAsState()
+
+    // Load once when screen opens
+    LaunchedEffect(Unit) {
+        viewModel.loadUserProfile()
+    }
+
+    // Use rememberSaveable to persist during recompositions
+    var username by rememberSaveable { mutableStateOf("") }
+    var firstName by rememberSaveable { mutableStateOf("") }
+    var lastName by rememberSaveable { mutableStateOf("") }
+    var phone by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
+
+    // Update UI fields once when data loads
+    LaunchedEffect(userData) {
+        username = userData.username
+        firstName = userData.firstName
+        lastName = userData.lastName
+        phone = userData.phone
+        email = userData.email
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Text("Edit Profile", style = MaterialTheme.typography.titleLarge)
+
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = username,
+            onValueChange = {
+                username = it
+                viewModel.updateField("username", it)
+            },
+            label = { Text("Username") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = firstName,
+            onValueChange = {
+                firstName = it
+                viewModel.updateField("firstName", it)
+            },
+            label = { Text("First Name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = lastName,
+            onValueChange = {
+                lastName = it
+                viewModel.updateField("lastName", it)
+            },
+            label = { Text("Last Name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = phone,
+            onValueChange = {
+                phone = it
+                viewModel.updateField("phone", it)
+            },
+            label = { Text("Phone") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = email,
+            onValueChange = {
+                email = it
+                viewModel.updateField("email", it)
+            },
+            label = { Text("Email") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = {
+                viewModel.saveUserProfile()
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Save Changes")
+        }
+    }
+}
+
+
