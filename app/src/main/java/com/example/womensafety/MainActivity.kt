@@ -406,11 +406,11 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                var email by remember { mutableStateOf("") }
+
 
                 OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
+                    value = emailOrUsername,
+                    onValueChange = { emailOrUsername = it },
                     label = { Text("Email") },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -426,10 +426,7 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                )
+
 
                 var passwordVisible by remember { mutableStateOf(false) }
 
@@ -876,24 +873,7 @@ fun EmergencyContactScreen(
     val context = LocalContext.current
     val contactsList = remember { mutableStateListOf<Pair<String, String>>() }
     var errorMessage by remember { mutableStateOf("") }
-
-    // Load existing contacts from Firestore
-    LaunchedEffect(Unit) {
-        userId?.let { uid ->
-            firestore.collection("users").document(uid)
-                .collection("emergencyContacts")
-                .get()
-                .addOnSuccessListener { documents ->
-                    for (document in documents) {
-                        val name = document.getString("name") ?: ""
-                        val phone = document.getString("phoneNumber") ?: ""
-                        if (name.isNotEmpty() && phone.isNotEmpty()) {
-                            contactsList.add(Pair(name, phone))
-                        }
-                    }
-                }
-        }
-    }
+    var hasLoadedContacts by remember { mutableStateOf(false) }
 
     // Contact Picker Launcher
     val contactPickerLauncher = rememberLauncherForActivityResult(
@@ -908,6 +888,30 @@ fun EmergencyContactScreen(
         }
     }
 
+    // Load contacts only once
+    LaunchedEffect(userId) {
+        if (!hasLoadedContacts && userId != null) {
+            hasLoadedContacts = true
+            firestore.collection("users").document(userId)
+                .collection("emergencyContacts")
+                .get()
+                .addOnSuccessListener { documents ->
+                    for (document in documents) {
+                        val name = document.getString("name") ?: ""
+                        val phone = document.getString("phoneNumber") ?: ""
+                        val pair = Pair(name, phone)
+                        if (name.isNotEmpty() && phone.isNotEmpty() && pair !in contactsList) {
+                            contactsList.add(pair)
+                        }
+                    }
+                }
+        }
+    }
+
+    // Manual contact fields
+    var contactName by remember { mutableStateOf("") }
+    var contactPhone by remember { mutableStateOf("") }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -919,99 +923,102 @@ fun EmergencyContactScreen(
             )
         }
     ) { paddingValues ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text("Your Emergency Contacts", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-
-            Spacer(modifier = Modifier.height(8.dp))
+            item {
+                Text("Your Emergency Contacts", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            }
 
             if (contactsList.isEmpty()) {
-                Text("No contacts added yet", color = Color.Gray)
+                item {
+                    Text("No contacts added yet", color = Color.Gray)
+                }
             } else {
-                LazyColumn {
-                    items(contactsList) { (name, phone) ->
-                        ContactItem(name, phone, contactsList, firestore, userId)
-                    }
+                items(contactsList) { (name, phone) ->
+                    ContactItem(name, phone, contactsList, firestore, userId)
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // Add contact from phone
-            Button(
-                onClick = { contactPickerLauncher.launch(null) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.PersonAdd, contentDescription = "Add Contact")
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Add Contact from Phone")
+                Button(
+                    onClick = { contactPickerLauncher.launch(null) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.PersonAdd, contentDescription = "Add Contact")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Add Contact from Phone")
+                }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
 
-            // Manual contact entry
-            var contactName by remember { mutableStateOf("") }
-            var contactPhone by remember { mutableStateOf("") }
+                OutlinedTextField(
+                    value = contactName,
+                    onValueChange = { contactName = it },
+                    label = { Text("Contact Name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-            OutlinedTextField(
-                value = contactName,
-                onValueChange = { contactName = it },
-                label = { Text("Contact Name") },
-                modifier = Modifier.fillMaxWidth()
-            )
+                Spacer(modifier = Modifier.height(8.dp))
 
-            OutlinedTextField(
-                value = contactPhone,
-                onValueChange = { contactPhone = it },
-                label = { Text("Phone Number") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                modifier = Modifier.fillMaxWidth()
-            )
+                OutlinedTextField(
+                    value = contactPhone,
+                    onValueChange = { contactPhone = it },
+                    label = { Text("Phone Number") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-            Button(
-                onClick = {
-                    if (contactName.isNotBlank() && contactPhone.isNotBlank()) {
-                        contactsList.add(Pair(contactName, contactPhone))
-                        saveEmergencyContact(userId, contactName, contactPhone, firestore)
-                        contactName = ""
-                        contactPhone = ""
-                    } else {
-                        errorMessage = "Please enter both name and phone number"
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Save Contact")
-            }
+                Spacer(modifier = Modifier.height(8.dp))
 
-            Spacer(modifier = Modifier.height(32.dp))
+                Button(
+                    onClick = {
+                        if (contactName.isNotBlank() && contactPhone.isNotBlank()) {
+                            contactsList.add(Pair(contactName, contactPhone))
+                            saveEmergencyContact(userId, contactName, contactPhone, firestore)
+                            contactName = ""
+                            contactPhone = ""
+                        } else {
+                            errorMessage = "Please enter both name and phone number"
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Save Contact")
+                }
 
-            Button(
-                onClick = {
-                    if (contactsList.size >= 2) {
-                        navController.navigate("dashboard")
-                    } else {
-                        errorMessage = "Please add at least two emergency contacts"
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Continue")
-            }
+                Spacer(modifier = Modifier.height(24.dp))
 
-            if (errorMessage.isNotEmpty()) {
-                Text(errorMessage, color = Color.Red)
+                Button(
+                    onClick = {
+                        if (contactsList.size >= 2) {
+                            navController.navigate("dashboard")
+                        } else {
+                            errorMessage = "Please add at least two emergency contacts"
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Continue")
+                }
+
+                if (errorMessage.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(errorMessage, color = Color.Red)
+                }
             }
         }
     }
 }
+
 
 // Save Contact to Firestore
 fun saveEmergencyContact(userId: String?, name: String, phone: String, firestore: FirebaseFirestore) {
