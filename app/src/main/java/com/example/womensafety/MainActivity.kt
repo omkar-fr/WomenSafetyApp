@@ -863,6 +863,7 @@ fun RegistrationScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 
+
 @Composable
 fun EmergencyContactScreen(
     navController: NavController,
@@ -873,42 +874,42 @@ fun EmergencyContactScreen(
     val context = LocalContext.current
     val contactsList = remember { mutableStateListOf<Pair<String, String>>() }
     var errorMessage by remember { mutableStateOf("") }
-    var hasLoadedContacts by remember { mutableStateOf(false) }
 
-    // Contact Picker Launcher
     val contactPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickContact()
     ) { uri: Uri? ->
         uri?.let { contactUri ->
             val contactInfo = getContactDetails(context, contactUri)
             contactInfo?.let { (name, phone) ->
-                contactsList.add(Pair(name, phone))
-                saveEmergencyContact(userId, name, phone, firestore)
+                if (name.isNotBlank() && phone.isNotBlank()) {
+                    val pair = Pair(name, phone)
+                    if (pair !in contactsList) {
+                        contactsList.add(pair)
+                        saveEmergencyContact(userId, name, phone, firestore)
+                    }
+                }
             }
         }
     }
 
-    // Load contacts only once
+    // Load contacts once
     LaunchedEffect(userId) {
-        if (!hasLoadedContacts && userId != null) {
-            hasLoadedContacts = true
-            firestore.collection("users").document(userId)
+        userId?.let {
+            firestore.collection("users").document(it)
                 .collection("emergencyContacts")
                 .get()
                 .addOnSuccessListener { documents ->
-                    for (document in documents) {
-                        val name = document.getString("name") ?: ""
-                        val phone = document.getString("phoneNumber") ?: ""
-                        val pair = Pair(name, phone)
-                        if (name.isNotEmpty() && phone.isNotEmpty() && pair !in contactsList) {
-                            contactsList.add(pair)
-                        }
+                    val newContacts = documents.mapNotNull { doc ->
+                        val name = doc.getString("name")
+                        val phone = doc.getString("phoneNumber")
+                        if (!name.isNullOrBlank() && !phone.isNullOrBlank()) Pair(name, phone) else null
                     }
+                    contactsList.clear()
+                    contactsList.addAll(newContacts)
                 }
         }
     }
 
-    // Manual contact fields
     var contactName by remember { mutableStateOf("") }
     var contactPhone by remember { mutableStateOf("") }
 
@@ -946,7 +947,6 @@ fun EmergencyContactScreen(
 
             item {
                 Spacer(modifier = Modifier.height(16.dp))
-
                 Button(
                     onClick = { contactPickerLauncher.launch(null) },
                     modifier = Modifier.fillMaxWidth()
@@ -982,10 +982,14 @@ fun EmergencyContactScreen(
                 Button(
                     onClick = {
                         if (contactName.isNotBlank() && contactPhone.isNotBlank()) {
-                            contactsList.add(Pair(contactName, contactPhone))
-                            saveEmergencyContact(userId, contactName, contactPhone, firestore)
+                            val pair = Pair(contactName, contactPhone)
+                            if (pair !in contactsList) {
+                                contactsList.add(pair)
+                                saveEmergencyContact(userId, contactName, contactPhone, firestore)
+                            }
                             contactName = ""
                             contactPhone = ""
+                            errorMessage = ""
                         } else {
                             errorMessage = "Please enter both name and phone number"
                         }
@@ -1000,7 +1004,12 @@ fun EmergencyContactScreen(
                 Button(
                     onClick = {
                         if (contactsList.size >= 2) {
-                            navController.navigate("dashboard")
+                            navController.navigate("dashboard") {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    inclusive = false
+                                }
+                                launchSingleTop = true
+                            }
                         } else {
                             errorMessage = "Please add at least two emergency contacts"
                         }
@@ -1018,6 +1027,7 @@ fun EmergencyContactScreen(
         }
     }
 }
+
 
 
 // Save Contact to Firestore
@@ -1448,7 +1458,7 @@ fun SOSScreen(navController: NavController) {
                         Button(
                             onClick = {
                                 val intent = Intent(Intent.ACTION_DIAL).apply {
-                                    data = Uri.parse("tel:911")
+                                    data = Uri.parse("tel:100")
                                 }
                                 context.startActivity(intent)
                             },
@@ -1465,14 +1475,14 @@ fun SOSScreen(navController: NavController) {
                                 contentDescription = "Call Police"
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("POLICE (911)")
+                            Text("POLICE (100)")
                         }
 
                         // Women's Helpline button
                         Button(
                             onClick = {
                                 val intent = Intent(Intent.ACTION_DIAL).apply {
-                                    data = Uri.parse("tel:1800")
+                                    data = Uri.parse("tel:181")
                                 }
                                 context.startActivity(intent)
                             },
@@ -1489,7 +1499,7 @@ fun SOSScreen(navController: NavController) {
                                 contentDescription = "Call Women's Helpline"
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("WOMEN'S HELPLINE (1-800)")
+                            Text("WOMEN'S HELPLINE (181)")
                         }
                     }
                 }
