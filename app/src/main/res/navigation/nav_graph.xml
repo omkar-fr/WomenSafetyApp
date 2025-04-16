@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/dashboardFragment">
+
+    <!-- Dashboard Screen -->
+    <fragment
+        android:id="@+id/dashboardFragment"
+        android:name="com.example.womensafety.ui.DashboardFragment"
+        android:label="Dashboard"
+        tools:layout="@layout/fragment_dashboard" />
+
+    <!-- Live Location Screen -->
+    <fragment
+        android:id="@+id/liveLocationFragment"
+        android:name="com.example.womensafety.ui.LiveLocationFragment"
+        android:label="Live Location"
+        tools:layout="@layout/fragment_live_location" />
+</navigation>
